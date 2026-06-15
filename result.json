@@ -1,0 +1,6 @@
+{
+  "task_id": "030",
+  "command": "echo hello 030 > result.txt",
+  "stdout": "書き込み許可をリクエスト中です。承認をお願いします。\n\nなお、コード保存の予定があれば、最初に `git init` + `gh repo create --private` を実行しますか？一時的な作業フォルダなら不要です。\n",
+  "stderr": ""
+}
