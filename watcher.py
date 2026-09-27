@@ -1,74 +1,62 @@
+import time
 import json
 import subprocess
-import time
-import os
 from datetime import datetime
 
-TASK_FILE = "task.json"
-LOG_FILE = "logs/run.jsonl"
-DONE_FILE = "done_tasks.json"
-
+DONE = set()
 
 def load_tasks():
-    with open(TASK_FILE, "r") as f:
-        data = json.load(f)
-        return data.get("tasks", [])
+    try:
+        with open("task.json", "r") as f:
+            return json.load(f).get("tasks", [])
+    except:
+        return []
 
-
-def load_done():
-    if not os.path.exists(DONE_FILE):
-        return set()
-
-    with open(DONE_FILE, "r") as f:
-        return set(json.load(f))
-
-
-def save_done(done_tasks):
-    with open(DONE_FILE, "w") as f:
-        json.dump(list(done_tasks), f)
-
-
-def run(task):
+# ★ここが重要（修正ポイント）
+def run_claude(command):
     result = subprocess.run(
-        task["command"],
-        shell=True,
+        ["claude", "-p", command],
         capture_output=True,
         text=True
     )
+    return result.stdout.strip()
 
-    os.makedirs("logs", exist_ok=True)
-
-    log = {
-        "task_id": task["task_id"],
-        "command": task["command"],
-        "status": "success" if result.returncode == 0 else "failed",
-        "stdout": result.stdout,
-        "stderr": result.stderr,
-        "timestamp": datetime.utcnow().isoformat()
+def save_result(task_id, command, output):
+    data = {
+        "task_id": task_id,
+        "command": command,
+        "output": output,
+        "timestamp": datetime.now().isoformat()
     }
 
-    with open(LOG_FILE, "a") as f:
-        f.write(json.dumps(log, ensure_ascii=False) + "\n")
-
-    print("実行完了:", log)
-
+    with open("result.json", "a") as f:
+        json.dump(data, f)
+        f.write("\n")
 
 def main():
-    done_tasks = load_done()
+    print("watcher started...")
 
     while True:
         tasks = load_tasks()
 
         for task in tasks:
-            if task["task_id"] in done_tasks:
+            task_id = task.get("task_id")
+            command = task.get("command")
+
+            if task_id in DONE:
                 continue
 
-            run(task)
-            done_tasks.add(task["task_id"])
-            save_done(done_tasks)
+            DONE.add(task_id)
+
+            print(f"run: {task_id} {command}")
+
+            output = run_claude(command)
+
+            print(output)
+
+            save_result(task_id, command, output)
 
         time.sleep(1)
-
 
 if __name__ == "__main__":
     main()
